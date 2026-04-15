@@ -119,6 +119,7 @@
         {% if eta is not none %}
             <section class="result">
                 <p><strong>ETA:</strong> {{ eta }} minutes</p>
+                <p><strong>Traffic level:</strong> {{ traffic_level|title }}</p>
                 <p><strong>Explanation:</strong> {{ explanation }}</p>
             </section>
         {% endif %}
