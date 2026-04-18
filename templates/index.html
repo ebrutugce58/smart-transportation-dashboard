@@ -1,261 +1,1430 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bus Arrival Prediction</title>
-    <style>
-        :root {
-            color-scheme: light;
-            --bg: #f3f6ff;
-            --card: #ffffff;
-            --text: #14213d;
-            --muted: #5b6475;
-            --primary: #2f67f6;
-            --primary-dark: #2552c4;
-            --focus: #8fb0ff;
-            --success-bg: #ecfdf3;
-            --success-border: #33c07a;
-            --warning-bg: #fff7ed;
-            --warning-border: #fb923c;
-            --danger-bg: #fff1f2;
-            --danger-border: #ef4444;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Smart Bus Arrival Prediction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #070d18;
+      --bg-card: rgba(16, 24, 44, 0.62);
+      --bg-elevated: rgba(22, 32, 56, 0.88);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --glass-highlight: rgba(255, 255, 255, 0.06);
+      --text: #f8fafc;
+      --muted: #9fb1c9;
+      --muted-deep: #7d8fa8;
+      --accent: #34d9c3;
+      --accent-glow: rgba(52, 217, 195, 0.38);
+      --accent-soft: rgba(45, 212, 191, 0.14);
+      --border: rgba(148, 163, 184, 0.16);
+      --radius: 20px;
+      --radius-sm: 14px;
+      --shadow-soft: 0 4px 28px rgba(0, 0, 0, 0.38);
+      --shadow-float: 0 26px 68px rgba(0, 0, 0, 0.42), 0 0 0 1px var(--glass-border);
+      --shadow-hover: 0 34px 76px rgba(0, 0, 0, 0.48);
+      --badge-low: #22c55e;
+      --badge-low-bg: rgba(34, 197, 94, 0.12);
+      --badge-mod: #eab308;
+      --badge-mod-bg: rgba(234, 179, 8, 0.12);
+      --badge-hi: #ef4444;
+      --badge-hi-bg: rgba(239, 68, 68, 0.12);
+    }
 
-        * {
-            box-sizing: border-box;
-        }
+    * { box-sizing: border-box; }
 
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            padding: 20px;
-            font-family: Inter, Arial, sans-serif;
-            background: radial-gradient(circle at top, #eaf0ff 0%, var(--bg) 45%, #eef2ff 100%);
-            color: var(--text);
-        }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 0% -10%, rgba(45, 212, 191, 0.09), transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, rgba(99, 102, 241, 0.08), transparent 50%),
+        radial-gradient(800px 400px at 50% 100%, rgba(15, 23, 42, 0.9), transparent),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
 
-        .card {
-            width: min(95vw, 520px);
-            background: var(--card);
-            border-radius: 18px;
-            padding: 28px;
-            box-shadow: 0 18px 40px rgba(31, 44, 86, 0.14);
-        }
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: clamp(1.65rem, 4vw, 2.85rem);
+    }
 
-        h1 {
-            margin: 0;
-            text-align: center;
-            font-size: 1.9rem;
-            letter-spacing: 0.2px;
-        }
+    header {
+      margin-bottom: clamp(1.85rem, 4vw, 2.65rem);
+      max-width: 52rem;
+    }
 
-        .subtitle {
-            margin: 10px 0 24px;
-            text-align: center;
-            color: var(--muted);
-            font-size: 0.98rem;
-        }
+    .eyebrow {
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
 
-        form {
-            display: grid;
-            gap: 16px;
-        }
+    h1 {
+      font-size: clamp(1.65rem, 4.2vw, 2.15rem);
+      font-weight: 700;
+      margin: 0 0 0.5rem;
+      letter-spacing: -0.035em;
+    }
 
-        .field {
-            display: grid;
-            gap: 8px;
-        }
+    .sub {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+      max-width: 42ch;
+      line-height: 1.5;
+    }
 
-        .label-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-        }
+    .layout-grid {
+      display: grid;
+      gap: 1.65rem;
+      align-items: stretch;
+    }
 
-        .icon {
-            font-size: 1rem;
-        }
+    @media (min-width: 960px) {
+      .layout-grid {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+        gap: 1.85rem 2.15rem;
+      }
+    }
 
-        input,
-        select {
-            width: 100%;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
-            padding: 13px 14px;
-            font-size: 1rem;
-            background: #fff;
-            outline: none;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
+    .glass-panel {
+      background: linear-gradient(
+        155deg,
+        rgba(24, 34, 58, 0.78) 0%,
+        rgba(12, 18, 34, 0.72) 100%
+      );
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-float);
+      padding: clamp(1.45rem, 3vw, 2rem);
+      transition: box-shadow 0.35s ease, transform 0.35s ease, border-color 0.25s ease;
+    }
 
-        input:focus,
-        select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px var(--focus);
-        }
+    .glass-panel:hover {
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
 
-        .helper {
-            margin: 2px 0 4px;
-            color: var(--muted);
-            font-size: 0.86rem;
-        }
+    .glass-panel--dash {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
 
-        button {
-            border: 0;
-            border-radius: 10px;
-            padding: 13px 14px;
-            background: linear-gradient(135deg, #3f7bff 0%, var(--primary) 55%, #275de0 100%);
-            color: #fff;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
-            box-shadow: 0 8px 16px rgba(47, 103, 246, 0.3);
-        }
+    .glass-panel h2 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin: 0 0 1.2rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
 
-        button:hover {
-            background: linear-gradient(135deg, #4a85ff 0%, var(--primary-dark) 60%, #204bb5 100%);
-            transform: translateY(-1px) scale(1.01);
-            box-shadow: 0 10px 20px rgba(37, 82, 196, 0.35);
-        }
+    .dash-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem 1.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.45rem;
+    }
 
-        button:active {
-            transform: translateY(0) scale(0.99);
-        }
+    .dash-clock { text-align: right; flex-shrink: 0; }
 
-        .result {
-            margin-top: 24px;
-            padding: 16px;
-            border-radius: 12px;
-            border: 1px solid #dbe2f0;
-            background: #f8faff;
-        }
+    .dash-clock__time {
+      display: block;
+      font-size: 1.28rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+    }
 
-        .result h2 {
-            margin: 0 0 10px;
-            font-size: 1.1rem;
-        }
+    .dash-clock__date {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
 
-        .result--success {
-            background: var(--success-bg);
-            border-color: var(--success-border);
-        }
+    .dash-clock-hint {
+      font-size: 0.73rem;
+      line-height: 1.5;
+      color: var(--muted-deep);
+      margin: 0 0 1.45rem;
+    }
 
-        .result--warning {
-            background: var(--warning-bg);
-            border-color: var(--warning-border);
-        }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 0.45rem;
+    }
 
-        .result--danger {
-            background: var(--danger-bg);
-            border-color: var(--danger-border);
-        }
+    select {
+      width: 100%;
+      padding: 0.78rem 0.95rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text);
+      font: inherit;
+      margin-bottom: 1.05rem;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%2394a3b8' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5H7z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      padding-right: 2.5rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
 
-        .result p {
-            margin: 8px 0;
-            font-size: 0.97rem;
-        }
+    select:hover {
+      border-color: rgba(148, 163, 184, 0.22);
+    }
 
-        @media (max-width: 540px) {
-            .card {
-                padding: 20px;
-                border-radius: 14px;
-            }
+    select:focus {
+      outline: none;
+      border-color: rgba(45, 212, 191, 0.45);
+      box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
+    }
 
-            h1 {
-                font-size: 1.55rem;
-            }
-        }
-    </style>
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin-top: 0.35rem;
+      padding: 0.88rem 1.1rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      color: #042f2e;
+      background: linear-gradient(135deg, #5eead4, var(--accent));
+      box-shadow: 0 12px 32px rgba(45, 212, 191, 0.25);
+      transition: transform 0.2s ease, box-shadow 0.25s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 44px rgba(45, 212, 191, 0.32);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .alert {
+      margin-top: 1rem;
+      padding: 0.75rem 0.95rem;
+      border-radius: var(--radius-sm);
+      background: rgba(251, 113, 133, 0.08);
+      border: 1px solid rgba(251, 113, 133, 0.28);
+      color: #fecdd3;
+      font-size: 0.86rem;
+    }
+
+    .route-mini {
+      margin-top: 1.45rem;
+      padding: 1.05rem 1.1rem;
+      border-radius: var(--radius-sm);
+      background: rgba(12, 18, 32, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .route-mini:hover {
+      background: rgba(16, 24, 42, 0.62);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .route-mini__label {
+      font-size: 0.58rem;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .route-mini__path {
+      margin: 0;
+      font-size: 0.73rem;
+      line-height: 1.65;
+      color: #b4c5db;
+      word-break: break-word;
+    }
+
+    .dash {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .eta-hero {
+      position: relative;
+      margin-bottom: 1.45rem;
+      padding: clamp(1.85rem, 4vw, 2.6rem) clamp(1.35rem, 3vw, 2.1rem);
+      border-radius: calc(var(--radius) - 4px);
+      background:
+        radial-gradient(ellipse 85% 75% at 50% 0%, rgba(52, 217, 195, 0.16), transparent 62%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, transparent 48%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 1px 0 var(--glass-highlight), var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    .eta-hero::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at 30% 40%, rgba(45, 212, 191, 0.08), transparent 45%);
+      pointer-events: none;
+    }
+
+    .eta-hero--empty {
+      min-height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .eta-hero--empty .eta-hero__inner {
+      position: relative;
+      text-align: center;
+    }
+
+    .eta-hero__placeholder-num {
+      font-size: clamp(3rem, 12vw, 4.5rem);
+      font-weight: 700;
+      color: rgba(148, 163, 184, 0.18);
+      letter-spacing: -0.04em;
+      line-height: 1;
+      user-select: none;
+    }
+
+    .eta-hero__placeholder-hint {
+      margin: 1rem 0 0;
+      font-size: 0.88rem;
+      color: var(--muted);
+      max-width: 22ch;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .eta-hero__inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .eta-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.72rem;
+    }
+
+    .eta {
+      display: flex;
+      align-items: baseline;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+    }
+
+    .eta-num {
+      font-size: clamp(3.25rem, 10vw, 4.75rem);
+      font-weight: 700;
+      letter-spacing: -0.045em;
+      line-height: 1;
+      color: var(--accent);
+      text-shadow: 0 0 60px var(--accent-glow);
+    }
+
+    .eta-unit {
+      font-size: 1.1rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .schedule-delta-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+      background: rgba(45, 212, 191, 0.1);
+      border: 1px solid rgba(45, 212, 191, 0.28);
+      color: #5eead4;
+    }
+
+    .schedule-delta-badge--over {
+      background: rgba(251, 146, 60, 0.1);
+      border-color: rgba(251, 146, 60, 0.35);
+      color: #fdba74;
+    }
+
+    .schedule-delta-badge--under {
+      background: rgba(96, 165, 250, 0.1);
+      border-color: rgba(96, 165, 250, 0.3);
+      color: #93c5fd;
+    }
+
+    .schedule-delta-badge--neutral {
+      background: rgba(148, 163, 184, 0.08);
+      border-color: rgba(148, 163, 184, 0.2);
+      color: #cbd5e1;
+    }
+
+    .peak-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.65rem 0.8rem;
+      margin-top: 0.5rem;
+      border-radius: var(--radius-sm);
+      background: rgba(251, 146, 60, 0.06);
+      border: 1px solid rgba(251, 146, 60, 0.2);
+      font-size: 0.72rem;
+      line-height: 1.5;
+      color: #fcd34d;
+    }
+
+    .peak-banner__icon {
+      flex-shrink: 0;
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    .eta-tick-hint {
+      margin: 0;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--muted-deep);
+      font-variant-numeric: tabular-nums;
+      min-height: 1.25rem;
+    }
+
+    .next-arrivals {
+      margin-top: 1.25rem;
+      padding-top: 1.05rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .next-arrivals__toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      width: 100%;
+      padding: 0.78rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(12, 18, 34, 0.55);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      text-align: left;
+      box-shadow: var(--shadow-soft);
+      transition: border-color 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
+    }
+
+    .next-arrivals__toggle:hover {
+      border-color: rgba(52, 217, 195, 0.32);
+      background: rgba(16, 24, 42, 0.72);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+    }
+
+    .next-arrivals__toggle:focus-visible {
+      outline: 2px solid rgba(52, 217, 195, 0.55);
+      outline-offset: 2px;
+    }
+
+    .next-arrivals__chev {
+      flex-shrink: 0;
+      display: inline-block;
+      font-size: 0.7rem;
+      line-height: 1;
+      color: var(--muted);
+      transition: transform 0.22s ease;
+    }
+
+    .next-arrivals__toggle[aria-expanded="true"] .next-arrivals__chev {
+      transform: rotate(180deg);
+    }
+
+    .next-arrivals__panel {
+      margin-top: 0.9rem;
+    }
+
+    .next-arrivals__head {
+      font-size: 0.58rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.65rem;
+    }
+
+    .next-arrivals__table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .next-arrivals__table th {
+      text-align: left;
+      font-size: 0.58rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted-deep);
+      padding: 0.35rem 0.5rem 0.5rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .next-arrivals__table td {
+      padding: 0.55rem 0.5rem 0.55rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #e2e8f0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .next-arrivals__table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .next-arrivals__table .na-clock {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .next-arrivals__table .na-mins {
+      text-align: right;
+      color: #a8b9cc;
+      max-width: 12.5rem;
+      padding-left: 0.65rem;
+      line-height: 1.38;
+    }
+
+    .next-arrivals__table .na-away-text {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .next-arrivals__src {
+      margin: 0.65rem 0 0;
+      font-size: 0.65rem;
+      color: var(--muted-deep);
+      line-height: 1.45;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .metric-card {
+      background: rgba(12, 18, 34, 0.58);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.08rem;
+      min-height: 5.85rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 0.5rem;
+      box-shadow: var(--shadow-soft);
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+      border-color: rgba(255, 255, 255, 0.14);
+      background: rgba(16, 24, 42, 0.65);
+    }
+
+    .metric-card__label {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .metric-card__hint {
+      font-size: 0.69rem;
+      line-height: 1.45;
+      color: #aab9ca;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .weather-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .wx-icon {
+      font-size: 1.4rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .wx-text {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.3rem 0.68rem;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .badge--traffic-low {
+      color: #86efac;
+      background: var(--badge-low-bg);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .badge--traffic-mod {
+      color: #fde047;
+      background: var(--badge-mod-bg);
+      border: 1px solid rgba(234, 179, 8, 0.4);
+    }
+
+    .badge--traffic-heavy {
+      color: #fca5a5;
+      background: var(--badge-hi-bg);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .badge--dem-low {
+      color: #86efac;
+      background: var(--badge-low-bg);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .badge--dem-mod {
+      color: #fde047;
+      background: var(--badge-mod-bg);
+      border: 1px solid rgba(234, 179, 8, 0.4);
+    }
+
+    .badge--dem-high {
+      color: #fca5a5;
+      background: var(--badge-hi-bg);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .conf-big {
+      font-size: 1.75rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    .conf-big__pct {
+      font-size: 0.95rem;
+      font-weight: 600;
+      opacity: 0.92;
+      margin-left: 0.05em;
+    }
+
+    .conf-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.45rem;
+    }
+
+    .conf-reliability {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted-deep);
+    }
+
+    .conf-reliability--low {
+      color: #94a3b8;
+    }
+
+    .conf-reliability--medium {
+      color: #fde68a;
+    }
+
+    .conf-reliability--high {
+      color: #5eead4;
+    }
+
+    .metric-card--conf {
+      justify-content: flex-start;
+    }
+
+    .stop-summary {
+      margin-top: 1.15rem;
+      padding: 0.92rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(10, 16, 30, 0.45);
+    }
+
+    .stop-summary__label {
+      font-size: 0.58rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.72rem;
+    }
+
+    .stop-summary__row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.75rem;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      margin-bottom: 0.55rem;
+    }
+
+    .stop-summary__row:last-child {
+      margin-bottom: 0;
+    }
+
+    .stop-summary__col {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      text-align: right;
+      gap: 0.15rem;
+      min-width: 0;
+    }
+
+    .stop-summary__k {
+      color: var(--muted-deep);
+      font-weight: 500;
+    }
+
+    .stop-summary__v {
+      font-weight: 600;
+      color: #e2e8f0;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stop-summary__hint {
+      display: block;
+      font-size: 0.62rem;
+      font-weight: 500;
+      color: var(--muted-deep);
+      margin-top: 0.2rem;
+    }
+
+    .route-strip {
+      margin-top: 0.95rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(10, 16, 30, 0.42);
+      overflow: hidden;
+    }
+
+    .route-strip summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+      padding: 0.72rem 0.88rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      transition: background 0.18s ease;
+    }
+
+    .route-strip summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .route-strip summary:hover {
+      background: rgba(148, 163, 184, 0.05);
+    }
+
+    .route-strip[open] summary {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .route-strip__meta {
+      letter-spacing: 0.02em;
+    }
+
+    .route-strip__chev {
+      flex-shrink: 0;
+      font-size: 0.65rem;
+      color: var(--muted);
+      transition: transform 0.2s ease;
+    }
+
+    .route-strip[open] .route-strip__chev {
+      transform: rotate(180deg);
+    }
+
+    .route-strip__body {
+      padding: 0.75rem 0.88rem 0.92rem;
+    }
+
+    .route-strip__path {
+      margin: 0;
+      font-size: 0.72rem;
+      line-height: 1.65;
+      color: #b4c5db;
+      word-break: break-word;
+    }
+
+    .rec-block {
+      margin-bottom: 1.25rem;
+    }
+
+    .rec-block .rec-label {
+      margin-top: 0;
+    }
+
+    .rec-line {
+      font-size: 0.88rem;
+      font-weight: 500;
+      line-height: 1.52;
+      color: #d8e0ea;
+      margin: 0;
+      padding: 0.92rem 1.08rem;
+      border-radius: var(--radius-sm);
+      background: var(--accent-soft);
+      border: 1px solid rgba(45, 212, 191, 0.2);
+    }
+
+    .rec-label {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.55rem;
+      margin-top: 0.15rem;
+    }
+
+    .route-pill {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem 0.75rem;
+      align-items: center;
+      font-size: 0.74rem;
+      color: var(--muted);
+      margin-bottom: 1.1rem;
+    }
+
+    .route-pill span {
+      color: #c5d0de;
+      font-weight: 500;
+    }
+
+    .tech-details {
+      margin-top: 0.2rem;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: var(--radius-sm);
+      background: rgba(10, 16, 30, 0.48);
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+      transition: border-color 0.2s ease;
+    }
+
+    .tech-details:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .tech-details summary {
+      cursor: pointer;
+      padding: 0.72rem 0.95rem;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--muted);
+      list-style: none;
+      user-select: none;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .tech-details summary:hover {
+      background: rgba(148, 163, 184, 0.06);
+      color: #cbd5e1;
+    }
+
+    .tech-details summary::-webkit-details-marker { display: none; }
+
+    .tech-details[open] summary {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .tech-body {
+      padding: 0.95rem 1rem 1.1rem;
+      font-size: 0.73rem;
+      line-height: 1.58;
+      color: #aab9ca;
+    }
+
+    .tech-body h4 {
+      margin: 0.85rem 0 0.35rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .tech-body h4:first-child { margin-top: 0; }
+
+    .tech-body p { margin: 0 0 0.65rem; }
+
+    .tech-body .mono {
+      font-family: ui-monospace, monospace;
+      font-size: 0.69rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      color: #bccadd;
+    }
+
+    footer {
+      margin-top: 2.5rem;
+      text-align: center;
+      font-size: 0.76rem;
+      color: var(--muted-deep);
+    }
+
+    .dash-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .dash-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .hub-badge {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.28rem 0.55rem;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(129, 140, 248, 0.35);
+      color: #a5b4fc;
+    }
+
+    .shelter-hint {
+      margin: 0.5rem 0 0;
+      font-size: 0.68rem;
+      line-height: 1.4;
+      color: #7dd3fc;
+      font-weight: 500;
+    }
+  </style>
 </head>
 <body>
-    <main class="card">
-        <h1>Bus Arrival Prediction</h1>
-        <p class="subtitle">When the bus will really arrive</p>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">Live intelligence</p>
+      <h1>Smart Bus Arrival Prediction</h1>
+      <p class="sub">Select route and stop to generate a live ETA forecast.</p>
+      {% if data_note %}
+      <p class="sub" style="margin-top:0.65rem;font-size:0.82rem;opacity:0.88">{{ data_note }}</p>
+      {% endif %}
+    </header>
 
-        <form method="post">
-            <div class="field">
-                <div class="label-row">
-                    <span class="icon">🚌</span>
-                    <label for="bus_line">Bus line</label>
-                </div>
-                <select id="bus_line" name="bus_line" required>
-                    {% for line in available_lines %}
-                        <option value="{{ line }}" {% if line == bus_line %}selected{% endif %}>
-                            {{ line }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+    <div class="layout-grid">
+      <section class="glass-panel" aria-labelledby="form-title">
+        <h2 id="form-title">Request</h2>
+        <form method="post" action="{{ url_for('index') }}" autocomplete="off">
+          <label for="bus_line">Bus line</label>
+          <select id="bus_line" name="bus_line" required>
+            <option value="" disabled {% if not request.form.get('bus_line') %}selected{% endif %}>Select line…</option>
+            {% for line_id, line_label in line_options %}
+            <option value="{{ line_id }}" {% if request.form.get('bus_line') == line_id %}selected{% endif %}>{{ line_label }}</option>
+            {% endfor %}
+          </select>
 
-            <div class="field">
-                <div class="label-row">
-                    <span class="icon">📍</span>
-                    <label for="stop">Stop</label>
-                </div>
-                <select id="stop" name="stop" required></select>
-            </div>
+          <label for="stop_id">Stop</label>
+          <select id="stop_id" name="stop_id" required>
+            <option value="" disabled {% if not request.form.get('stop_id') %}selected{% endif %}>Select stop…</option>
+          </select>
 
-            <p class="helper">Select a bus line and stop</p>
-
-            <button type="submit">Predict Arrival</button>
+          <button type="submit" class="btn">Predict arrival</button>
         </form>
-
-        {% if eta is not none %}
-            {% if eta is number %}
-                {% if eta <= 2 %}
-                    {% set result_class = "result result--success" %}
-                {% elif eta <= 5 %}
-                    {% set result_class = "result result--warning" %}
-                {% else %}
-                    {% set result_class = "result result--danger" %}
-                {% endif %}
-            {% else %}
-                {% set result_class = "result result--danger" %}
-            {% endif %}
-
-            <section class="{{ result_class }}">
-                <h2>Prediction Dashboard</h2>
-                <p><strong>🕒 ETA:</strong> {{ eta }}{% if eta is number %} minutes{% endif %}</p>
-                <p><strong>Bus line:</strong> {{ bus_line }}</p>
-                <p><strong>Stop:</strong> {{ stop }}</p>
-                <p><strong>🚦 Traffic level:</strong> {{ traffic_level|title }}</p>
-                <p><strong>ML model used:</strong> {{ "Yes" if model_used else "No" }}</p>
-                <p><strong>ℹ️ Explanation:</strong> {{ explanation }}</p>
-            </section>
+        {% if prediction %}
+        {% set sum_dem = prediction.demand_badge|default('dem-mod') %}
+        {% if sum_dem == 'dem-high' %}{% set sum_dem_lbl = 'High' %}
+        {% elif sum_dem == 'dem-low' %}{% set sum_dem_lbl = 'Low' %}
+        {% else %}{% set sum_dem_lbl = 'Moderate' %}
         {% endif %}
-    </main>
-    <script>
-        const lineStopMap = {{ line_stop_map|tojson }};
-        const lineSelect = document.getElementById("bus_line");
-        const stopSelect = document.getElementById("stop");
-        const selectedStop = "{{ stop }}";
+        <div class="stop-summary" aria-label="Selected stop summary">
+          <div class="stop-summary__label">Selected stop summary</div>
+          <div class="stop-summary__row">
+            <span class="stop-summary__k">Avg ETA</span>
+            <div class="stop-summary__col">
+              <span class="stop-summary__v">{{ prediction.stop_avg_eta_minutes|default('—') }} min</span>
+              {% if prediction.stop_avg_eta_source == 'history' %}
+              <span class="stop-summary__hint">From stop history</span>
+              {% elif prediction.stop_avg_eta_source == 'schedule' %}
+              <span class="stop-summary__hint">Typical spacing (schedule)</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="stop-summary__row">
+            <span class="stop-summary__k">Expected demand</span>
+            <span class="stop-summary__v">{{ sum_dem_lbl }}</span>
+          </div>
+        </div>
+        {% endif %}
+        {% if error %}
+        <div class="alert" role="alert">{{ error }}</div>
+        {% endif %}
 
-        function renderStops() {
-            const lineId = lineSelect.value;
-            const stops = lineStopMap[lineId] || [];
-            stopSelect.innerHTML = "";
+        <div class="route-mini" aria-live="polite">
+          <div class="route-mini__label">Route preview</div>
+          <p class="route-mini__path" id="route-preview-path">Select a line to preview the route.</p>
+        </div>
+      </section>
 
-            stops.forEach((item) => {
-                const option = document.createElement("option");
-                option.value = item.stop_id;
-                option.textContent = item.label;
-                stopSelect.appendChild(option);
-            });
+      <section class="glass-panel glass-panel--dash dash" aria-labelledby="dash-title">
+        <div class="dash-body">
+          <div class="dash-topbar">
+            <div class="dash-title-row">
+              <h2 id="dash-title" style="margin:0">Dashboard</h2>
+              {% if prediction.is_transfer_hub %}
+              <span class="hub-badge">Transfer hub</span>
+              {% endif %}
+            </div>
+            <div class="dash-clock">
+              <time id="local-clock" class="dash-clock__time" datetime=""></time>
+              <span id="local-date" class="dash-clock__date"></span>
+            </div>
+          </div>
+          <p class="dash-clock-hint">Uses your device’s local time for hour &amp; day matching.</p>
 
-            const hasSelectedStop = stops.some((item) => item.stop_id === selectedStop);
-            if (hasSelectedStop) {
-                stopSelect.value = selectedStop;
-            }
+          {% if prediction %}
+          {% set W = prediction.weather_condition %}
+          {% set pd = prediction.passenger_demand %}
+          {% set dem_badge = prediction.demand_badge|default('dem-mod') %}
+          {% if dem_badge == 'dem-high' %}{% set dem_lbl = 'High' %}
+          {% elif dem_badge == 'dem-low' %}{% set dem_lbl = 'Low' %}
+          {% else %}{% set dem_lbl = 'Moderate' %}
+          {% endif %}
+          {% if W == 'Clear' %}{% set wx_emoji = '☀️' %}
+          {% elif W == 'Cloudy' %}{% set wx_emoji = '☁️' %}
+          {% elif W == 'Rain' %}{% set wx_emoji = '🌧️' %}
+          {% elif W == 'Windy' %}{% set wx_emoji = '💨' %}
+          {% elif W == 'Snow' %}{% set wx_emoji = '❄️' %}
+          {% else %}{% set wx_emoji = '🌤️' %}
+          {% endif %}
+
+          <div class="eta-hero">
+            <div class="eta-hero__inner">
+              <div class="eta-stack">
+                <div class="eta" aria-live="polite">
+                  <span class="eta-num" id="eta-mins-main">{{ prediction.eta_minutes }}</span>
+                  <span class="eta-unit">min ETA</span>
+                </div>
+                <p class="eta-tick-hint" id="eta-tick-hint" aria-live="polite"></p>
+                {% set sd = prediction.schedule_delta_min|default(0) %}
+                <span class="schedule-delta-badge {% if sd > 0 %}schedule-delta-badge--over{% elif sd < 0 %}schedule-delta-badge--under{% else %}schedule-delta-badge--neutral{% endif %}">
+                  {% if sd > 0 %}+{{ sd }} min vs schedule{% elif sd < 0 %}{{ sd }} min vs schedule{% else %}On schedule{% endif %}
+                </span>
+              </div>
+              {% if prediction.next_arrivals %}
+              <div class="next-arrivals">
+                <button
+                  type="button"
+                  class="next-arrivals__toggle"
+                  id="next-arrivals-toggle"
+                  aria-expanded="false"
+                  aria-controls="next-arrivals-panel"
+                >
+                  <span class="next-arrivals__toggle-label">View next buses</span>
+                  <span class="next-arrivals__chev" aria-hidden="true">▾</span>
+                </button>
+                <div class="next-arrivals__panel" id="next-arrivals-panel" hidden>
+                  <div class="next-arrivals__head">Next arrivals</div>
+                  <table class="next-arrivals__table" role="table" aria-label="Next three buses">
+                    <thead>
+                      <tr>
+                        <th scope="col">Arrives</th>
+                        <th scope="col" style="text-align:right">Away</th>
+                      </tr>
+                    </thead>
+                    <tbody id="next-arrivals-body">
+                      {% for row in prediction.next_arrivals %}
+                      <tr data-epoch-ms="{{ row.epoch_ms }}">
+                        <td class="na-clock">{{ row.clock }}</td>
+                        <td class="na-mins"><span class="na-away-text">—</span></td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                  {% if prediction.next_arrivals_source %}
+                  <p class="next-arrivals__src">{{ prediction.next_arrivals_source }}</p>
+                  {% endif %}
+                </div>
+              </div>
+              {% endif %}
+              {% if prediction.peak_traffic_alert %}
+              <div class="peak-banner" role="status">
+                <span class="peak-banner__icon" aria-hidden="true">⚠</span>
+                <span>{% if prediction.rush_hour_overlap %}Heavy traffic during a typical rush window — expect extended waits.{% else %}Heavy traffic on this corridor — plan extra buffer beyond the schedule.{% endif %}</span>
+              </div>
+              {% endif %}
+              <details class="route-strip">
+                <summary>
+                  <span class="route-strip__meta">
+                    {% if prediction.route_stop_count %}
+                    {{ prediction.route_stop_count }} stops · {{ prediction.route_topology_label|default('Route') }}
+                    {% else %}
+                    Route details
+                    {% endif %}
+                  </span>
+                  <span class="route-strip__chev" aria-hidden="true">▾</span>
+                </summary>
+                <div class="route-strip__body">
+                  <p class="route-strip__path">
+                    {% if prediction.route_path and prediction.route_path != '—' %}
+                    {{ prediction.route_path }}
+                    {% else %}
+                    Route detail not available for this line.
+                    {% endif %}
+                  </p>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <div class="rec-block">
+            <div class="rec-label">Recommendation</div>
+            <p class="rec-line">{{ prediction.recommendation }}</p>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric-card">
+              <span class="metric-card__label">Traffic</span>
+              <span class="badge badge--traffic-{% if prediction.traffic_level == 'Low' %}low{% elif prediction.traffic_level == 'Moderate' %}mod{% else %}heavy{% endif %}">{{ prediction.traffic_level }}</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Weather</span>
+              <div class="weather-row">
+                <span class="wx-icon" aria-hidden="true">{{ wx_emoji }}</span>
+                <span class="wx-text">{{ prediction.weather_condition }}</span>
+              </div>
+              {% if prediction.shelter_note %}
+              <p class="shelter-hint">{{ prediction.shelter_note }}</p>
+              {% endif %}
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Demand</span>
+              <span class="badge badge--{{ dem_badge }}">{{ dem_lbl }}</span>
+              <span class="metric-card__hint">{{ pd }}</span>
+            </div>
+            <div class="metric-card metric-card--conf">
+              <span class="metric-card__label">Confidence</span>
+              <div class="conf-stack">
+                <div class="conf-big">{{ prediction.confidence_pct }}<span class="conf-big__pct">%</span></div>
+                {% set rel = prediction.confidence_reliability|default('Medium') %}
+                <span class="conf-reliability {% if rel == 'Low' %}conf-reliability--low{% elif rel == 'High' %}conf-reliability--high{% else %}conf-reliability--medium{% endif %}">
+                  {{ rel }} reliability
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="route-pill">
+            {% if prediction.line_name %}
+            <span>{{ prediction.line_name }}</span>
+            {% else %}
+            <span>{{ prediction.bus_line }}</span>
+            {% endif %}
+            <span>·</span>
+            <span>{{ prediction.stop_name }}</span>
+            <span>·</span>
+            <span>Sched {{ prediction.scheduled_eta_minutes }} min</span>
+            <span>·</span>
+            <span>AI {% if prediction.ai_model_used %}on{% else %}off{% endif %}</span>
+          </div>
+
+          <details class="tech-details">
+            <summary>Show Technical Details</summary>
+            <div class="tech-body">
+              <h4>Dataset IDs</h4>
+              <p class="mono" style="margin:0 0 0.65rem">line_id {{ prediction.bus_line }}</p>
+              <p class="mono" style="margin:0 0 0.85rem">stop_id {{ prediction.stop_id }}</p>
+              {% if prediction.metric_lineage %}
+              <h4>Metric sources</h4>
+              <p class="mono" style="margin:0 0 0.85rem;white-space:pre-wrap;line-height:1.65">{{ prediction.metric_lineage }}</p>
+              {% endif %}
+              <p>{{ prediction.explanation }}</p>
+              <p style="margin-top:0.65rem;margin-bottom:0">{{ prediction.weather_detail }}</p>
+            </div>
+          </details>
+          {% else %}
+          <div class="eta-hero eta-hero--empty">
+            <div class="eta-hero__inner">
+              <div class="eta-hero__placeholder-num" aria-hidden="true">—</div>
+              <p class="eta-hero__placeholder-hint">Select route and stop to generate a live ETA forecast.</p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+
+    <footer>Smart Bus Arrival Prediction</footer>
+  </div>
+  <script>
+    (function () {
+      var lineEl = document.getElementById("bus_line");
+      var stopEl = document.getElementById("stop_id");
+      var previewEl = document.getElementById("route-preview-path");
+      var data = {{ stops_by_line|tojson }};
+      var routePreviews = {{ route_preview_by_line|tojson }};
+      var selectedLine = {{ (request.form.get('bus_line') or '')|tojson }};
+      var selectedStop = {{ (request.form.get('stop_id') or '')|tojson }};
+
+      function updateRoutePreview() {
+        if (!previewEl) return;
+        var line = lineEl.value;
+        if (!line) {
+          previewEl.textContent = "Select a line to preview the route.";
+          return;
         }
+        var path = routePreviews[line];
+        if (!path || path === "—") {
+          previewEl.textContent = "Route preview unavailable for this line.";
+          return;
+        }
+        previewEl.textContent = path;
+      }
 
-        lineSelect.addEventListener("change", renderStops);
-        renderStops();
-    </script>
+      function fillStops() {
+        var line = lineEl.value;
+        stopEl.innerHTML = "";
+        var ph = document.createElement("option");
+        ph.value = "";
+        ph.textContent = "Select stop…";
+        ph.disabled = true;
+        ph.selected = true;
+        stopEl.appendChild(ph);
+        if (!line || !data[line]) return;
+
+        data[line].forEach(function (pair) {
+          var sid = String(pair[0]);
+          var label = pair[1];
+          var opt = document.createElement("option");
+          opt.value = sid;
+          opt.textContent = label;
+          if (selectedStop && sid === String(selectedStop)) {
+            opt.selected = true;
+            ph.selected = false;
+          }
+          stopEl.appendChild(opt);
+        });
+      }
+
+      lineEl.addEventListener("change", function () {
+        selectedStop = "";
+        fillStops();
+        var line = lineEl.value;
+        if (line && data[line] && data[line].length > 0) {
+          var firstId = String(data[line][0][0]);
+          stopEl.value = firstId;
+          selectedStop = firstId;
+        }
+        updateRoutePreview();
+      });
+
+      stopEl.addEventListener("change", function () {
+        selectedStop = stopEl.value;
+      });
+
+      document.addEventListener("DOMContentLoaded", function () {
+        if (selectedLine) lineEl.value = selectedLine;
+        fillStops();
+        updateRoutePreview();
+      });
+    })();
+
+    (function () {
+      function updateLocalClock() {
+        var tEl = document.getElementById("local-clock");
+        var dEl = document.getElementById("local-date");
+        if (!tEl || !dEl) return;
+        var now = new Date();
+        tEl.setAttribute("datetime", now.toISOString());
+        tEl.textContent = now.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit"
+        });
+        dEl.textContent = now.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric"
+        });
+      }
+      updateLocalClock();
+      setInterval(updateLocalClock, 1000);
+    })();
+
+    (function () {
+      {% if prediction and prediction.eta_target_ms is defined %}
+      var client = {{ {"eta_target_ms": prediction.eta_target_ms}|tojson }};
+      {% else %}
+      var client = null;
+      {% endif %}
+      if (!client || typeof client.eta_target_ms !== "number") return;
+
+      var hint = document.getElementById("eta-tick-hint");
+      var num = document.getElementById("eta-mins-main");
+      var MIN_AWAY_FULL = 120;
+
+      function formatAwayLabel(arrivalMs, nowMs) {
+        var rem = arrivalMs - nowMs;
+        if (rem <= 0) return "Due now";
+        var mins = Math.ceil(rem / 60000);
+        var arrive = new Date(arrivalMs);
+        var nowD = new Date(nowMs);
+        var sameCalDay =
+          arrive.getFullYear() === nowD.getFullYear() &&
+          arrive.getMonth() === nowD.getMonth() &&
+          arrive.getDate() === nowD.getDate();
+        var startToday = new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate());
+        var startArrive = new Date(arrive.getFullYear(), arrive.getMonth(), arrive.getDate());
+        var dayDiff = Math.round((startArrive - startToday) / 86400000);
+        var manyHours = mins >= MIN_AWAY_FULL || !sameCalDay;
+        if (!manyHours) {
+          return String(mins) + " min";
+        }
+        var timeStr = arrive.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true
+        });
+        if (dayDiff === 1) {
+          return "Tomorrow " + timeStr;
+        }
+        if (dayDiff === 0) {
+          return "Today " + timeStr;
+        }
+        return (
+          arrive.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric"
+          }) +
+          " · " +
+          timeStr
+        );
+      }
+
+      function tickTransit() {
+        var now = Date.now();
+        var rem = client.eta_target_ms - now;
+        if (num) {
+          var mins = Math.max(0, Math.ceil(rem / 60000));
+          num.textContent = String(mins);
+        }
+        if (hint) {
+          if (rem <= 0) {
+            hint.textContent = "Due now";
+          } else {
+            var m = Math.floor(rem / 60000);
+            var s = Math.floor((rem % 60000) / 1000);
+            var pad = s < 10 ? "0" : "";
+            hint.textContent =
+              m > 0 ? "Arrival in " + m + " min " + pad + s + "s" : "Arrival in " + s + "s";
+          }
+        }
+        var tbody = document.getElementById("next-arrivals-body");
+        if (tbody) {
+          var trs = tbody.querySelectorAll("tr[data-epoch-ms]");
+          trs.forEach(function (tr) {
+            var ep = parseInt(tr.getAttribute("data-epoch-ms"), 10);
+            var span = tr.querySelector(".na-away-text");
+            if (!span || isNaN(ep)) return;
+            span.textContent = formatAwayLabel(ep, now);
+          });
+        }
+      }
+
+      tickTransit();
+      setInterval(tickTransit, 1000);
+
+      var naToggle = document.getElementById("next-arrivals-toggle");
+      var naPanel = document.getElementById("next-arrivals-panel");
+      var naLabel = naToggle ? naToggle.querySelector(".next-arrivals__toggle-label") : null;
+      if (naToggle && naPanel) {
+        naToggle.addEventListener("click", function () {
+          var open = naToggle.getAttribute("aria-expanded") === "true";
+          var nextOpen = !open;
+          naToggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+          naPanel.hidden = !nextOpen;
+          if (naLabel) {
+            naLabel.textContent = nextOpen ? "Hide next buses" : "View next buses";
+          }
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
