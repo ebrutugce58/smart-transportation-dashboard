@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import joblib
 import pandas as pd
 from flask import Flask, make_response, render_template, request
 
@@ -32,6 +33,7 @@ _trips_df: pd.DataFrame | None = None
 _flow_df: pd.DataFrame | None = None
 _bus_stops_df: pd.DataFrame | None = None
 _load_note: str | None = None
+_rf_artifact: dict[str, Any] | None = None
 
 
 def _safe_read_csv(path: Path) -> pd.DataFrame | None:
@@ -1272,6 +1274,124 @@ def _predict_from_csv(line: str, stop_id: str) -> dict[str, Any]:
     }
 
 
+def _load_rf_artifact() -> None:
+    """Load Random Forest pipeline from model.pkl; leave rule-based path if missing or invalid."""
+    global _rf_artifact
+    _rf_artifact = None
+    path = BASE_DIR / "model.pkl"
+    if not path.is_file():
+        print(
+            "[RF] model.pkl not found — ETA uses rule-based logic only. "
+            "Train with: python train_model.py"
+        )
+        return
+    try:
+        artifact = joblib.load(path)
+        if not isinstance(artifact, dict) or "pipeline" not in artifact:
+            print("[RF] model.pkl has unexpected format — using rule-based ETA only.")
+            return
+        _rf_artifact = artifact
+        m = artifact.get("metrics", {})
+        mae, rmse, r2 = m.get("mae"), m.get("rmse"), m.get("r2")
+        if mae is not None and rmse is not None and r2 is not None:
+            print(
+                "[RF] Loaded RandomForestRegressor (model.pkl) | "
+                f"validation MAE={float(mae):.4f} min, RMSE={float(rmse):.4f} min, R²={float(r2):.4f}"
+            )
+        else:
+            print("[RF] Loaded RandomForestRegressor from model.pkl.")
+    except Exception as e:
+        print(f"[RF] Could not load model.pkl ({e!r}) — using rule-based ETA only.")
+
+
+def _rf_feature_frame(line: str, stop_id: str, now: datetime) -> pd.DataFrame:
+    """Single-row feature frame aligned with train_model.py."""
+    hour = int(now.hour)
+    delay = 0.0
+    traffic_raw = "moderate"
+    wx_raw = "clear"
+
+    if _arrivals_df is not None and not _arrivals_df.empty:
+        sub = _arrivals_df[
+            (_arrivals_df["line_id"] == line) & (_arrivals_df["stop_id"] == stop_id)
+        ]
+        if not sub.empty and "delay_min" in sub.columns:
+            dmed = pd.to_numeric(sub["delay_min"], errors="coerce").median()
+            delay = float(dmed) if dmed == dmed else 0.0
+        if not sub.empty and "traffic_level" in sub.columns:
+            tm = sub["traffic_level"].dropna().astype(str).str.lower().str.strip()
+            if not tm.empty:
+                traffic_raw = str(tm.mode().iloc[0])
+        if not sub.empty and "weather_condition" in sub.columns:
+            wm = sub["weather_condition"].dropna().astype(str).str.lower().str.strip()
+            if not wm.empty:
+                wx_raw = str(wm.mode().iloc[0])
+
+    wx_row, _, _ = _resolve_weather_observation(now, line, stop_id)
+    if wx_row is not None:
+        raw = str(wx_row.get("weather_condition", "") or "").strip().lower()
+        if raw:
+            wx_raw = raw
+
+    flow_sub = _matching_passenger_flow_rows(line, stop_id, now)
+    apw = 0.0
+    if not flow_sub.empty and "avg_passengers_waiting" in flow_sub.columns:
+        v = pd.to_numeric(flow_sub["avg_passengers_waiting"], errors="coerce").mean()
+        if v == v:
+            apw = float(v)
+
+    row = {
+        "hour_of_day": hour,
+        "delay_min": delay,
+        "avg_passengers_waiting": apw,
+        "line_id": str(line).lower().strip(),
+        "stop_id": str(stop_id).strip(),
+        "traffic_level": traffic_raw,
+        "weather_condition": wx_raw,
+    }
+    return pd.DataFrame([row])
+
+
+def _predict_rf_eta_minutes(line: str, stop_id: str, now: datetime) -> float:
+    if _rf_artifact is None:
+        raise RuntimeError("RF artifact not loaded")
+    pipe = _rf_artifact["pipeline"]
+    X = _rf_feature_frame(line, stop_id, now)
+    y_hat = pipe.predict(X)
+    return float(y_hat[0])
+
+
+def _apply_rf_eta_overrides(pred: dict[str, Any], line: str, stop_id: str) -> dict[str, Any]:
+    now = datetime.now()
+    raw_eta = _predict_rf_eta_minutes(line, stop_id, now)
+    eta_i = int(round(max(2.0, min(90.0, raw_eta))))
+    out = dict(pred)
+    sched = int(out.get("scheduled_eta_minutes", eta_i))
+    out["eta_minutes"] = eta_i
+    out["schedule_delta_min"] = int(eta_i - sched)
+    out["recommendation"] = _recommendation_from_comparison(
+        sched,
+        eta_i,
+        str(out.get("traffic_level", "Moderate")),
+        str(out.get("passenger_demand") or ""),
+    )
+    mae = 0.0
+    if _rf_artifact:
+        mae = float(_rf_artifact.get("metrics", {}).get("mae") or 0.0)
+    rf_banner = (
+        f"ETA: Random Forest Regressor (scikit-learn) trained on stop_arrivals.csv; "
+        f"held-out MAE≈{mae:.2f} min.\n"
+    )
+    out["metric_lineage"] = rf_banner + str(out.get("metric_lineage", ""))
+    out["explanation"] = (
+        "Primary ETA is predicted by a Random Forest model; "
+        "supporting metrics use the CSV/rule logic described below.\n"
+        + str(out.get("explanation", ""))
+    )
+    out["data_source"] = "random_forest"
+    return out
+
+
 def _predict(line: str, stop_id: str) -> dict[str, Any]:
     if _arrivals_df is None:
         pred = _simulate_prediction(line, stop_id)
@@ -1280,10 +1400,18 @@ def _predict(line: str, stop_id: str) -> dict[str, Any]:
             pred = _predict_from_csv(line, stop_id)
         except Exception:
             pred = _simulate_prediction(line, stop_id)
+
+    if _rf_artifact is not None:
+        try:
+            pred = _apply_rf_eta_overrides(pred, line, stop_id)
+        except Exception as exc:
+            print(f"[RF] Model inference failed; using rule-based ETA. ({exc!r})")
+
     return _enrich_transit_ui(pred, line, stop_id)
 
 
 _init_data()
+_load_rf_artifact()
 
 
 @app.route("/", methods=["GET", "POST"])

@@ -584,6 +584,7 @@
       color: #aab9ca;
       display: -webkit-box;
       -webkit-line-clamp: 2;
+      line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
@@ -1231,15 +1232,30 @@
 
     <footer>Smart Bus Arrival Prediction</footer>
   </div>
+  <script type="application/json" id="json-stops-by-line">{{ stops_by_line|tojson }}</script>
+  <script type="application/json" id="json-route-preview-by-line">{{ route_preview_by_line|tojson }}</script>
+  <script type="application/json" id="json-form-selection">{{ {'bus_line': request.form.get('bus_line') or '', 'stop_id': request.form.get('stop_id') or ''}|tojson }}</script>
+  <script type="application/json" id="json-transit-client">{% if prediction and prediction.eta_target_ms is defined %}{{ {'eta_target_ms': prediction.eta_target_ms}|tojson }}{% else %}null{% endif %}</script>
   <script>
     (function () {
+      function readJsonScript(id, fallback) {
+        var el = document.getElementById(id);
+        if (!el || !el.textContent) return fallback;
+        try {
+          return JSON.parse(el.textContent);
+        } catch (e) {
+          return fallback;
+        }
+      }
+
       var lineEl = document.getElementById("bus_line");
       var stopEl = document.getElementById("stop_id");
       var previewEl = document.getElementById("route-preview-path");
-      var data = {{ stops_by_line|tojson }};
-      var routePreviews = {{ route_preview_by_line|tojson }};
-      var selectedLine = {{ (request.form.get('bus_line') or '')|tojson }};
-      var selectedStop = {{ (request.form.get('stop_id') or '')|tojson }};
+      var data = readJsonScript("json-stops-by-line", {});
+      var routePreviews = readJsonScript("json-route-preview-by-line", {});
+      var formSel = readJsonScript("json-form-selection", {});
+      var selectedLine = formSel.bus_line || "";
+      var selectedStop = formSel.stop_id || "";
 
       function updateRoutePreview() {
         if (!previewEl) return;
@@ -1327,11 +1343,15 @@
     })();
 
     (function () {
-      {% if prediction and prediction.eta_target_ms is defined %}
-      var client = {{ {"eta_target_ms": prediction.eta_target_ms}|tojson }};
-      {% else %}
+      var transitEl = document.getElementById("json-transit-client");
       var client = null;
-      {% endif %}
+      if (transitEl && transitEl.textContent && transitEl.textContent.trim()) {
+        try {
+          client = JSON.parse(transitEl.textContent);
+        } catch (e) {
+          client = null;
+        }
+      }
       if (!client || typeof client.eta_target_ms !== "number") return;
 
       var hint = document.getElementById("eta-tick-hint");
