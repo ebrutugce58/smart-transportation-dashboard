@@ -224,6 +224,162 @@ def route_preview_by_line() -> dict[str, str]:
     return {lid: (_line_route_preview(lid) or "—") for lid in BUS_LINES}
 
 
+def map_stops_by_line() -> dict[str, list[dict[str, Any]]]:
+    """Map-friendly bus stop payload from bus_stops.csv."""
+    out: dict[str, list[dict[str, Any]]] = {line: [] for line in BUS_LINES}
+    if _bus_stops_df is None or _bus_stops_df.empty:
+        return out
+    needed = {"line_id", "stop_id", "stop_sequence", "latitude", "longitude"}
+    if not needed.issubset(set(_bus_stops_df.columns)):
+        return out
+    try:
+        for line in BUS_LINES:
+            sub = _bus_stops_df[_bus_stops_df["line_id"] == line].sort_values("stop_sequence")
+            rows: list[dict[str, Any]] = []
+            for _, row in sub.iterrows():
+                lat = pd.to_numeric(row.get("latitude"), errors="coerce")
+                lng = pd.to_numeric(row.get("longitude"), errors="coerce")
+                seq_val = pd.to_numeric(row.get("stop_sequence"), errors="coerce")
+                if pd.isna(lat) or pd.isna(lng):
+                    continue
+                stop_type_raw = str(row.get("stop_type", "") or "").strip()
+                line_name_raw = str(row.get("line_name", "") or "").strip()
+                rows.append(
+                    {
+                        "stop_id": str(row.get("stop_id", "") or ""),
+                        "line_id": line,
+                        "line_name": line_name_raw or line,
+                        "stop_sequence": int(seq_val) if not pd.isna(seq_val) else 0,
+                        "stop_type": _stop_type_display(stop_type_raw) or "Stop",
+                        "stop_name": _format_stop_dropdown_label(row),
+                        "latitude": float(lat),
+                        "longitude": float(lng),
+                    }
+                )
+            out[line] = rows
+    except Exception:
+        return {line: [] for line in BUS_LINES}
+    return out
+
+
+def _route_color(line_id: str) -> str:
+    palette = {
+        "L01": "#22d3ee",
+        "L02": "#f97316",
+        "L03": "#a78bfa",
+        "L04": "#f43f5e",
+        "L05": "#10b981",
+    }
+    return palette.get(line_id, "#22d3ee")
+
+
+def _map_passenger_density_label(line_id: str, stop_id: str) -> str:
+    if _flow_df is None or _flow_df.empty:
+        return "Moderate"
+    try:
+        sub = _flow_df[(_flow_df["line_id"] == line_id) & (_flow_df["stop_id"] == stop_id)]
+        if sub.empty:
+            return "Moderate"
+        if "crowding_level" in sub.columns:
+            crowd = sub["crowding_level"].dropna().astype(str).str.lower().str.strip()
+            if not crowd.empty:
+                val = str(crowd.mode().iloc[0])
+                if "high" in val:
+                    return "High"
+                if "low" in val:
+                    return "Low"
+        if "avg_passengers_waiting" in sub.columns:
+            wait = pd.to_numeric(sub["avg_passengers_waiting"], errors="coerce").dropna()
+            if not wait.empty:
+                med = float(wait.median())
+                if med >= 16:
+                    return "High"
+                if med <= 6:
+                    return "Low"
+        return "Moderate"
+    except Exception:
+        return "Moderate"
+
+
+def map_dashboard_by_line() -> dict[str, dict[str, Any]]:
+    """
+    Dashboard map payload per route from bus_stops.csv (+ stop_arrivals/passenger_flow enrichments):
+    - stop markers/route geometry
+    - per-stop ETA, delay, passenger density
+    - active buses estimate
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for line in BUS_LINES:
+        out[line] = {
+            "line_id": line,
+            "line_name": _line_name_from_bus_stops(line) or line,
+            "color": _route_color(line),
+            "active_buses": 0,
+            "stops": [],
+        }
+    if _bus_stops_df is None or _bus_stops_df.empty:
+        return out
+    need = {"line_id", "stop_id", "stop_sequence", "latitude", "longitude"}
+    if not need.issubset(set(_bus_stops_df.columns)):
+        return out
+
+    arrivals_agg: dict[tuple[str, str], tuple[int, int]] = {}
+    if _arrivals_df is not None and not _arrivals_df.empty:
+        try:
+            for (line_id, stop_id), grp in _arrivals_df.groupby(["line_id", "stop_id"]):
+                eta = pd.to_numeric(grp.get("minutes_to_next_bus"), errors="coerce").dropna()
+                delay = pd.to_numeric(grp.get("delay_min"), errors="coerce").dropna()
+                eta_i = int(round(float(eta.median()))) if not eta.empty else 12
+                delay_i = int(round(float(delay.median()))) if not delay.empty else 0
+                arrivals_agg[(str(line_id), str(stop_id))] = (max(1, min(90, eta_i)), delay_i)
+        except Exception:
+            arrivals_agg = {}
+
+    for line in BUS_LINES:
+        try:
+            sub = _bus_stops_df[_bus_stops_df["line_id"] == line].sort_values("stop_sequence")
+            rows: list[dict[str, Any]] = []
+            for _, row in sub.iterrows():
+                lat = pd.to_numeric(row.get("latitude"), errors="coerce")
+                lng = pd.to_numeric(row.get("longitude"), errors="coerce")
+                if pd.isna(lat) or pd.isna(lng):
+                    continue
+                stop_id = str(row.get("stop_id", "") or "")
+                seq_val = pd.to_numeric(row.get("stop_sequence"), errors="coerce")
+                eta_i, delay_i = arrivals_agg.get((line, stop_id), (12, 0))
+                rows.append(
+                    {
+                        "stop_id": stop_id,
+                        "line_id": line,
+                        "line_name": str(row.get("line_name", "") or "") or line,
+                        "stop_sequence": int(seq_val) if not pd.isna(seq_val) else 0,
+                        "stop_type": _stop_type_display(str(row.get("stop_type", "") or "").strip())
+                        or "Stop",
+                        "stop_name": _format_stop_dropdown_label(row),
+                        "latitude": float(lat),
+                        "longitude": float(lng),
+                        "eta_min": int(eta_i),
+                        "delay_min": int(delay_i),
+                        "passenger_density": _map_passenger_density_label(line, stop_id),
+                    }
+                )
+            out[line]["stops"] = rows
+            # Active buses estimate: route load + stop sample richness
+            route_n = len(rows)
+            eta_vals = [int(r["eta_min"]) for r in rows] or [12]
+            median_eta = float(pd.Series(eta_vals).median())
+            observed_factor = 0.0
+            if _arrivals_df is not None and not _arrivals_df.empty:
+                obs = _arrivals_df[_arrivals_df["line_id"] == line]
+                observed_factor = min(4.0, max(0.0, len(obs) / 180.0))
+            active = int(round(max(1.0, min(12.0, (route_n / max(6.0, median_eta)) + observed_factor))))
+            out[line]["active_buses"] = active
+        except Exception:
+            out[line]["stops"] = []
+            out[line]["active_buses"] = 0
+    return out
+
+
 def _line_route_preview(line_id: str, max_segments: int = 64) -> str:
     """Full route shape from bus_stops.csv (ordered stop_sequence), English title case."""
     if _bus_stops_df is None or _bus_stops_df.empty:
@@ -1655,6 +1811,8 @@ def index():
         line_options=line_options(),
         stops_by_line=sbl,
         route_preview_by_line=route_preview_by_line(),
+        map_stops_by_line=map_stops_by_line(),
+        map_dashboard_by_line=map_dashboard_by_line(),
         prediction=prediction,
         error=error,
         data_note=_load_note,
